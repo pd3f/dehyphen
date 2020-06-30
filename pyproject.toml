@@ -1,22 +1,23 @@
 [tool.poetry]
 name = "dehyphen"
 version = "0.0.0"
-description = ""
+description = "Dehyphenation of broken text (mainly German), e.g., extracted from a PDF"
+license = "GPL-3.0-only"
 authors = ["Johannes Filter <hi@jfilter.de>"]
+keywords = ['dehyphenation', 'nlp', 'german', 'hyhpens']
+
 
 [tool.poetry.dependencies]
 python = ">=3.6"
 flair = "^0.5"
 clean-text = "^0.1.1"
-unidecode = { version = "^1.1.1", optional = true }
+unidecode = { version = "^1.1.1", extras = [ "gpl" ] }
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 pylint = "^2.5.3"
 black = {version = "^19.10b0", allow-prereleases = true}
 
-[tool.poetry.extras]
-gpl = ["unidecode"]
 
 [build-system]
 requires = ["poetry>=0.12"]

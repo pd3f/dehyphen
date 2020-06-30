@@ -2,12 +2,12 @@
 
 *Experimental, use with care.*
 
-Dehyphenation of broken text, e.g., extracted from a PDF.
+Dehyphenation of broken text, e.g., extracted from a PDF. Mainly for the German but works for other languages as well.
 
-Reconstruction the orginal text by choosing among different options. Done by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of texts, using [flair](https://github.com/flairNLP/flair)'s language models.
+`Dehyphen` tries to re-construct the original text by choosing the most probably way to join lines or paragraphs.
+Several options are getting by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of texts, using [flair](https://github.com/flairNLP/flair)'s character-based language models.
 
-
-If you are into text extraction out of German PDFs: Stay tuned. I'm gonna relase something very soon. Follow [@ddd_jetzt](https://twitter.com/ddd_jetzt) on Twitter.
+If you are into text extraction for German PDFs: Stay tuned. I'm gonna relase something soon-ish. Follow [@ddd_jetzt](https://twitter.com/ddd_jetzt) on Twitter for updates.
 
 ## Installation
 
@@ -17,9 +17,28 @@ pip install dehyphen
 
 ## Usage
 
-You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise a standard mutlilanguage-model will be choosen. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431), but omit the -backwards and -forwards
+### 1. remove hyphens from end of line within paragraph
+```python
+from dehyphen import dehyphen
 
-The input text has to be in a special format. Paragraphs should be seperated by two newlines `\n` characters. Line should be end with a single `n`.
+# returns cleaned paragraph
+dehyphen(special_format, lang="de")
+```
+
+You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise a standard multi-language-model will be choosen. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431) (but omit the "-backwards" and "-forwards" as specified by flair).
+
+The input text has to be in a special format. Paragraphs should be seperated by two newlines characters (`\n\n`). Line should be end with a single newline `\n`. Several helper functions exists to transform into the required format.
+
+### 2. join paragraphs, e.g., to reverse a page break
+
+```python
+from dehyphen import join_paragraphs_if_cool
+
+# returns the joined paragraphs if it's cool, otherwise `None`
+join_paragraphs_if_cool(paragraph_1, paragraph_2, lang="de")
+```
+
+## Example
 
 ```python
 from dehyphen import *
@@ -86,4 +105,4 @@ join_paragraphs_if_cool(fixed[:2], lang="de")
 
 ## License
 
-MIT.
+GPLv3
