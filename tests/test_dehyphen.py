@@ -1,12 +1,9 @@
 import pytest
 
 from dehyphen import (
-    dehyphen,
     dehyphen_paragraph,
     format_to_paragraph,
-    format_to_text,
     join_paragraphs_if_cool,
-    paragraph_to_format,
     text_to_format,
 )
 
