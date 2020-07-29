@@ -5,13 +5,12 @@ description = "Dehyphenation of broken text (mainly German), e.g., extracted fro
 license = "GPL-3.0-only"
 authors = ["Johannes Filter <hi@jfilter.de>"]
 keywords = ['dehyphenation', 'nlp', 'german', 'hyhpens']
-
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.6"
 flair = "^0.5"
-clean-text = "^0.1.1"
-unidecode = { version = "^1.1.1", extras = [ "gpl" ] }
+clean-text = { version = "*", extras = [ "gpl" ] }
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

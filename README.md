@@ -4,7 +4,7 @@
 
 Dehyphenation of broken text, e.g., extracted from a PDF. Mainly for the German but works for other languages as well.
 
-`Dehyphen` tries to re-construct the original text by choosing the most probably way to join lines or paragraphs.
+`dehyphen` tries to re-construct the original text by choosing the most probably way to join lines or paragraphs.
 Several options are getting by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of texts, using [flair](https://github.com/flairNLP/flair)'s character-based language models.
 
 If you are into text extraction for German PDFs: Stay tuned. I'm gonna relase something soon-ish. Follow [@ddd_jetzt](https://twitter.com/ddd_jetzt) on Twitter for updates.
@@ -17,31 +17,37 @@ pip install dehyphen
 
 ## Usage
 
-### 1. remove hyphens from end of line within paragraph
 ```python
-from dehyphen import dehyphen
+from dehyphen import FlairScorer
 
-# returns cleaned paragraph
-dehyphen(special_format, lang="de")
+scorer = FlairScorer(lang="de")
 ```
 
 You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise a standard multi-language-model will be choosen. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431) (but omit the "-backwards" and "-forwards" as specified by flair).
+
+### 1. remove hyphens from end of line within paragraph
+```python
+
+# returns cleaned paragraph
+scorer.dehyphen(special_format)
+```
 
 The input text has to be in a special format. Paragraphs should be seperated by two newlines characters (`\n\n`). Line should be end with a single newline `\n`. Several helper functions exists to transform into the required format.
 
 ### 2. join paragraphs, e.g., to reverse a page break
 
 ```python
-from dehyphen import join_paragraphs_if_cool
 
-# returns the joined paragraphs if it's cool, otherwise `None`
-join_paragraphs_if_cool(paragraph_1, paragraph_2, lang="de")
+# returns the joined paragraphs if the language model thinks there were split, otherwise `None`
+is_split_paragraph(paragraph_1, paragraph_2)
 ```
 
 ## Example
 
 ```python
-from dehyphen import *
+from dehyphen import FlairScorer
+
+scorer = FlairScorer(lang="de")
 
 some_german_text = """Zwar wird durch die Einführung eines eigenen Strafgesetzes die Bedeutung der finan-
 ziellen Interessen der Union gewiss unterstrichen, dennoch erscheint die Aufspaltung
@@ -67,7 +73,7 @@ als bei der deutschen Schadensdogmatik.
 """
 
 special_format = text_to_format(some_german_text)
-fixed = dehyphen(special_format, lang="de") # you may pass a `lang` argument
+fixed = scorer.dehyphen(special_format) # you may pass a `lang` argument
 # removes all trailing `
 print(fixed)
 # Zwar wird durch die Einführung eines eigenen Strafgesetzes die Bedeutung der
@@ -100,7 +106,7 @@ print(fixed)
 # NB: EU-Staaten & Wire-Fraud **are** not dehyphenized
 
 # checks if two paragraphs can be joined, useful to, e.g., reverse page breaks.
-join_paragraphs_if_cool(fixed[:2], lang="de")
+scorer.is_split_paragraph(fixed[:2])
 ```
 
 ## License
