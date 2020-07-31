@@ -1,4 +1,4 @@
-from dehyphen.format import assert_format
+from dehyphen.format import assert_format, text_to_format
 
 
 def test_format_check():
@@ -14,3 +14,10 @@ def test_format_check():
     for x in t:
         print(x)
     assert_format(t)
+
+
+def test_text_to_format():
+    t1 = """inen gemeinsamen Einkauf, fördern ihre Mitglieder durch Weiterbildung und die Unterhaltung gemeinsam genutzter Räumlichkeiten und medizinischer Geräte. Als Einkaufsgemeinschaft können die Gesundheitsgenossenschaften Rahmenvereinbarungen mit Unternehmen abschließen, die den Mitgliedern zu Sonderkonditionen Produkte und Dienstleistungen anbieten. Da-  """
+    t1f = text_to_format(t1)
+    assert_format(t1f)
+

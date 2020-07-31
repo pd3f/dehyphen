@@ -18,6 +18,9 @@ def paragraph_to_format(paragraph):
 
 
 def text_to_format(text):
+    # special case if there is no newline in the text
+    if not "\n" in text:
+        return paragraph_to_format([text])
     lines = text.splitlines()
     paragraphs = split_list(lines, "")
     return list(map(paragraph_to_format, paragraphs))
