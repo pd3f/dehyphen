@@ -4,7 +4,7 @@ version = "0.1.1"
 description = "Dehyphenation of broken text (mainly German), e.g., extracted from a PDF"
 license = "GPL-3.0-only"
 authors = ["Johannes Filter <hi@jfilter.de>"]
-keywords = ['dehyphenation', 'nlp', 'german', 'hyhpens']
+keywords = ['dehyphenation', 'nlp', 'german', 'hyhpens', 'pdf']
 readme = "README.md"
 
 [tool.poetry.dependencies]

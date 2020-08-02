@@ -5,7 +5,7 @@ from dehyphen import FlairScorer, format_to_paragraph, text_to_format
 
 @pytest.fixture()
 def flair_scorer():
-    # fast model that also includes german
+    # fast (small) model that also includes German
     scorer = FlairScorer(lang="multi-v0", fast=True)
     return scorer
 
