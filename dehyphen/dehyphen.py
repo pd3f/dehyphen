@@ -83,6 +83,12 @@ class Scorer:
         assert_format(para1)
         assert_format(para2)
 
+        # flair does not work with only one char
+        if len(para1) == 1 and len(para1[0]) == 1:
+            return None
+        if len(para2) == 1 and len(para2[0]) == 1:
+            return None
+
         options = []
         # the lines may have newlines or whitespace in the end
         options.append(" ".join(para1[-1]) + "\n\n" + " ".join(para2[0]))
