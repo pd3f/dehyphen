@@ -5,6 +5,14 @@ description = "Dehyphenation of broken text (mainly German), e.g., extracted fro
 license = "GPL-3.0-only"
 authors = ["Johannes Filter <hi@jfilter.de>"]
 keywords = ['dehyphenation', 'nlp', 'german', 'hyhpens', 'pdf']
+classifiers = [
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 readme = "README.md"
 
 [tool.poetry.dependencies]
