@@ -8,7 +8,7 @@ Python package for dehyphenation of broken text, e.g., extracted from a PDF. Mai
 Several options are getting scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of text, using [Flair](https://github.com/flairNLP/flair)'s character-based language models.
 Based on these scores, the best fitting option is taken to guess the original text.
 
-If you are into text extraction for German PDFs: Stay tuned. I'm gonna release something soon-ish. Follow [@ddd_jetzt](https://twitter.com/ddd_jetzt) on Twitter for updates.
+If you are into text extraction for German PDFs: Stay tuned. I'm gonna release something soon-ish. Follow [@pd3f_](https://twitter.com/pd3f_) on Twitter for updates.
 
 ## Installation
 
@@ -24,7 +24,7 @@ from dehyphen import FlairScorer
 scorer = FlairScorer(lang="de")
 ```
 
-You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise, a multi-language-model will be chosen as the default. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431) (but omit the "-backwards" and "-forwards" as specified by Flair).
+You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise, a multi-language-model will be chosen as the default. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431) (but omit the "-backwards" and "-forwards" as specified by Flair). [Some are described here](https://github.com/flairNLP/flair/blob/master/resources/docs/embeddings/FLAIR_EMBEDDINGS.md) and [there is another repo with some more models](https://github.com/flairNLP/flair-lms).
 
 To speed up computations, choose a `-fast` language model from Flair. However, there are currently only a few. There is for instance a multi-language one named `multi-v0` that contains English, German, French and others. There is non for German.
 
@@ -96,7 +96,7 @@ print(fixed_hyphens[-1])
 ```
 **Output text**:
 
-Das Erfolgsverständnis entspricht daher eher dem wesentlich weiteren Betrugsbegriff bspw. des US-amerikanischen Rechts (Federal Law bspw. Fraud, Defraud, **Wire-Fraud**, Bank-Fraud, 18.U.S.C. §1341 ff.(2016)) , die teilweise auch ganz auf einen Schaden verzichten. Fraud erfasst auch viele untreue- und unterschlagungsähnliche Verhaltensweisen sowie betrügerische Verfügungen als solche. Auch andere **EU-Staaten**, wie bspw. Polen , liegen im Hinblick auf den Erfolg näher bei der Richtlinie als bei der deutschen Schadensdogmatik.Strafrecht und Verwaltungsrecht erreichen lassen.
+Das Erfolgsverständnis entspricht daher eher dem wesentlich weiteren Betrugsbegriff bspw. des US-amerikanischen Rechts (Federal Law bspw. Fraud, Defraud, **Wire-Fraud**, Bank-Fraud, 18.U.S.C. §1341 ff.(2016)), die teilweise auch ganz auf einen Schaden verzichten. Fraud erfasst auch viele untreue- und unterschlagungsähnliche Verhaltensweisen sowie betrügerische Verfügungen als solche. Auch andere **EU-Staaten**, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie als bei der deutschen Schadensdogmatik und Verwaltungsrecht erreichen lassen.
 
 ***EU-Staaten** & **Wire-Fraud** are not dehyphenized.*
 
