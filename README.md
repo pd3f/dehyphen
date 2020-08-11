@@ -2,18 +2,48 @@
 
 *Experimental, use with care.*
 
-Python package for dehyphenation of broken text, e.g., extracted from a PDF. Mainly for the German but works for other languages as well.
+Python package for **dehyphenation of broken text**, i.e., extracted from a PDF. Mainly for the German but works for other languages as well.
 
 `dehyphen` tries to reconstruct the original text by choosing the most probably way to join lines or paragraphs (and remove hyphens).
-Several options are getting scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of text, using [Flair](https://github.com/flairNLP/flair)'s character-based language models.
+Several options are getting scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of text, using [Flair](https://github.com/flairNLP/flair)'s character-based [language models](https://machinelearningmastery.com/statistical-language-modeling-and-neural-language-models/).
 Based on these scores, the best fitting option is taken to guess the original text.
 
 If you are into text extraction for German PDFs: Stay tuned. I'm gonna release something soon-ish. Follow [@pd3f_](https://twitter.com/pd3f_) on Twitter for updates.
+
+
+## An Example
+
+For this input
+
+> die Bedeutung der finan-
+>
+> ziellen Interessen der Union
+
+`dehyphen` joines the lines and removes the '-'.
+
+> die Bedeutung der **finanziellen** Interessen der Union
+
+But in this example
+
+> Auch andere EU-
+>
+> Staaten, wie bspw. Polen,
+
+the hyphen is kept.
+
+> Auch andere **EU-Staaten**, wie bspw. Polen,
+
 
 ## Installation
 
 ```bash
 pip install dehyphen
+```
+
+or
+
+```bash
+poetry add dehyphen
 ```
 
 ## Usage
@@ -26,13 +56,15 @@ scorer = FlairScorer(lang="de")
 
 You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise, a multi-language-model will be chosen as the default. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431) (but omit the "-backwards" and "-forwards" as specified by Flair). [Some are described here](https://github.com/flairNLP/flair/blob/master/resources/docs/embeddings/FLAIR_EMBEDDINGS.md) and [there is another repo with some more models](https://github.com/flairNLP/flair-lms).
 
-To speed up computations, choose a `-fast` language model from Flair. However, there are currently only a few. There is for instance a multi-language one named `multi-v0` that contains English, German, French and others. There is non for German.
+To speed up computations, choose a `-fast` language model from Flair. However, there are currently only a few.
+There is for instance a multi-language one named `multi-v0` that contains English, German, French and others.
+Unfortunately, there is no fast German-only model right now.
 
 Using CUDA (with a GPU) dramatically improves performance.
 
 ### 1. remove hyphens from the end of a line (within paragraphs)
-```python
 
+```python
 # returns cleaned paragraph
 scorer.dehyphen(special_format)
 ```
@@ -42,7 +74,6 @@ The input text has to be in a special format. Paragraphs should be seperated by 
 ### 2. join paragraphs, e.g., to reverse a page break
 
 ```python
-
 # returns the joined paragraphs if the language model thinks there were split, otherwise `None`
 scorer.is_split_paragraph(paragraph_1, paragraph_2)
 ```
@@ -73,7 +104,7 @@ bspw. des US-amerikanischen Rechts (Federal Law bspw. Fraud, Defraud, Wire-
 Fraud, Bank-Fraud, 18.U.S.C. §1341 ff.(2016)) , die teilweise auch ganz auf einen
 Schaden verzichten. Fraud erfasst auch viele untreue- und unterschlagungsähnliche
 Verhaltensweisen sowie betrügerische Verfügungen als solche. Auch andere EU-
-Staaten, wie bspw. Polen , liegen im Hinblick auf den Erfolg näher bei der Richtlinie
+Staaten, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie
 als bei der deutschen Schadensdogmatik.
 """
 

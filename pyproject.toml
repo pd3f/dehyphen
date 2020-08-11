@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "dehyphen"
 version = "0.2.0"
-description = "Dehyphenation of broken text (mainly German), e.g., extracted from a PDF"
+description = "Dehyphenation of broken text (mainly German), i.e., extracted from a PDF"
 license = "GPL-3.0-only"
 authors = ["Johannes Filter <hi@jfilter.de>"]
 repository = "https://github.com/jfilter/dehyphen"
