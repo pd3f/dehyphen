@@ -8,7 +8,7 @@ Python package for **dehyphenation of broken text**, i.e., extracted from a PDF.
 Several options are getting scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of text, using [Flair](https://github.com/flairNLP/flair)'s character-based [language models](https://machinelearningmastery.com/statistical-language-modeling-and-neural-language-models/).
 Based on these scores, the best fitting option is taken to guess the original text.
 
-If you are into text extraction for German PDFs: Stay tuned. I'm gonna release something soon-ish. Follow [@pd3f_](https://twitter.com/pd3f_) on Twitter for updates.
+Check out the PDF text extraction pipeline [pd3f](https://github.com/pd3f/pd3f) that uses `dehypen` internally.
 
 
 ## An Example
@@ -29,7 +29,7 @@ But in this example
 >
 > Staaten, wie bspw. Polen,
 
-the hyphen is kept.
+the lines are also joined bu the hyphen is kept (becaus it's part of the word).
 
 > Auch andere **EU-Staaten**, wie bspw. Polen,
 
