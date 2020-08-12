@@ -4,7 +4,7 @@
 
 Python package for **dehyphenation of broken text**, i.e., extracted from a PDF. Mainly for the German but works for other languages as well.
 
-`dehyphen` tries to reconstruct the original text by choosing the most probably way to join lines or paragraphs (and remove hyphens).
+`dehyphen` tries to reconstruct the original continuous text by choosing the most probably way to join lines or paragraphs (and remove hyphens).
 Several options are getting scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of text, using [Flair](https://github.com/flairNLP/flair)'s character-based [language models](https://machinelearningmastery.com/statistical-language-modeling-and-neural-language-models/).
 Based on these scores, the best fitting option is taken to guess the original text.
 
