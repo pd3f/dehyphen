@@ -1,3 +1,4 @@
+from dehyphen import scorer
 import pytest
 
 from dehyphen import FlairScorer, format_to_paragraph, text_to_format
@@ -72,3 +73,7 @@ def test_dehyphen_not_available_model():
     with pytest.raises(ValueError):
         FlairScorer(lang="1337", fast=True)
 
+
+def test_strange_error(flair_scorer):
+    lines = [['Abstract\n'], ['classiﬁcation(Remusetal.,2019)andusethepre- '], ['deﬁnedsetoflabelstoevaluateourapproachto\n'], ['Inthispaper,wefocusontheclassiﬁcation', 'thisclassiﬁcationtask', '1', '. '], ['ofbooksusingshortdescriptivetexts(cover\n'], ['blurbs)andadditionalmetadata.Building\n']]
+    flair_scorer.dehyphen_paragraph(lines)

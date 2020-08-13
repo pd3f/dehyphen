@@ -73,7 +73,8 @@ class Scorer:
             if best_score_idx == 2:
                 lines[idx + 1][0] = option3
                 lines[idx].pop()
-                lines[idx][-1] += " "
+                if len(lines[idx]) > 0:
+                    lines[idx][-1] += " "
 
         return lines
 
