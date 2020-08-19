@@ -3,6 +3,10 @@ from cleantext import clean
 from .format import assert_format
 
 
+def ends_with_whitespace(s):
+    return len(s) != len(s.rstrip())
+
+
 class Scorer:
     def dehyphen(self, paragraphs):
         return [self.dehyphen_paragraph(p) for p in paragraphs]
@@ -103,10 +107,14 @@ class Scorer:
             return None
 
         if best_score_idx == 1:
-            para1[-1][-1] += " "
+            if not ends_with_whitespace(para1[-1][-1]):
+                para1[-1][-1] += " "
             return para1 + para2
 
         if best_score_idx == 2:
             # joins the last word of para2 with the first word of para1
-            para1[-1][-1] = last_word_para1[:-1] + para2[0].pop(0) + " "
+            para1[-1][-1] = last_word_para1[:-1] + para2[0].pop(0)
+
+            if not ends_with_whitespace(para1[-1][-1]):
+                para1[-1][-1] += " "
             return para1 + para2
