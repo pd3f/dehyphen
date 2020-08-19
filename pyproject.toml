@@ -4,7 +4,7 @@ version = "0.3.1"
 description = "Dehyphenation of broken text (mainly German), i.e., extracted from a PDF"
 license = "GPL-3.0-only"
 authors = ["Johannes Filter <hi@jfilter.de>"]
-repository = "https://github.com/jfilter/dehyphen"
+repository = "https://github.com/pd3f/dehyphen"
 keywords = ["dehyphenation", "nlp", "german", "hyhpens", "pdf"]
 classifiers = [
     "Programming Language :: Python :: 3.6",
