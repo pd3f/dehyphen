@@ -7,20 +7,26 @@ class Scorer:
     def dehyphen(self, paragraphs):
         return [self.dehyphen_paragraph(p) for p in paragraphs]
 
-    # dehyphenation
     def dehyphen_paragraph(self, lines):
-        assert_format(lines)
-        # special format. 2D List, word should not contain whitespace, except the last words per line
-        later_options = []
-        later_idx = []
+        """dehyphenation of paragraph (lines)
 
-        for idx, l in enumerate(lines):
+        Lines have to be in special format. 2D List, word should not contain whitespace, except the last words per line
+        """
+        assert_format(lines)
+
+        # Iterate over all lines, change the next line if necessary. This ensure the updates version will get used in the next loop.
+        # Make sure to access the lines with the `idx`.
+        for idx in range(len(lines) - 1):
             # don't work on last line
-            if idx == len(lines) - 1:
+
+            l = lines[idx]
+
+            if len(l) == 0:
                 continue
+
             last_word = l[-1]
 
-            # don't work if ther has to be a newline
+            # don't work if there has to be a newline
             if last_word[-1] == "\n":
                 continue
 
@@ -44,24 +50,10 @@ class Scorer:
             # 3. remove hyphen, most likely to happen
             option3 = last_word.strip()[:-1] + next_word
 
-            later_options += [option1, option2, option3]
-            later_idx.append(idx)
-
-        # There is nothing to score.
-        if len(later_options) == 0:
-            return lines
-
-        # do it all with one request
-        all_scores = self.score(later_options)
-
-        for i, idx in enumerate(later_idx):
-            _, option2, option3 = later_options[i * 3 : i * 3 + 3]
-            scores = all_scores[i * 3 : i * 3 + 3]
+            scores = self.score((option1, option2, option3))
 
             best_score_idx = scores.index(min(scores))
             assert best_score_idx in (0, 1, 2)
-
-            # option1: don't change anything
 
             # option 2
             if best_score_idx == 1:
@@ -79,7 +71,8 @@ class Scorer:
                 if len(lines[idx]) > 0:
                     lines[idx][-1] += " "
 
-        return lines
+        # Some lines can be empty now, remove them.
+        return [x for x in lines if len(x) > 0]
 
     def is_split_paragraph(self, para1, para2):
         """currently only checks for the last / first line of the both paragraphs

@@ -75,5 +75,36 @@ def test_dehyphen_not_available_model():
 
 
 def test_strange_error(flair_scorer):
-    lines = [['Abstract\n'], ['classiﬁcation(Remusetal.,2019)andusethepre- '], ['deﬁnedsetoflabelstoevaluateourapproachto\n'], ['Inthispaper,wefocusontheclassiﬁcation', 'thisclassiﬁcationtask', '1', '. '], ['ofbooksusingshortdescriptivetexts(cover\n'], ['blurbs)andadditionalmetadata.Building\n']]
+    lines = [
+        ["Abstract\n"],
+        ["classiﬁcation(Remusetal.,2019)andusethepre- "],
+        ["deﬁnedsetoflabelstoevaluateourapproachto\n"],
+        ["Inthispaper,wefocusontheclassiﬁcation", "thisclassiﬁcationtask", "1", ". "],
+        ["ofbooksusingshortdescriptivetexts(cover\n"],
+        ["blurbs)andadditionalmetadata.Building\n"],
+    ]
     flair_scorer.dehyphen_paragraph(lines)
+
+
+def test_multiple_lines_into_one(flair_scorer):
+
+    lines = [
+        [
+            "logy.com/library/detail.aspx?g=56bce942-af1f-4f78-943e-c2eb54b75e10&utm_source=Le- "
+        ],
+        ["xology+Daily+Newsfeed&utm_medium=HTML+email+-+Body+- "],
+        [
+            "+General+section&utm_campaign=Lexology+subscriber+daily+feed&utm_content=Lexo- "
+        ],
+        ["logy+Daily+Newsfeed+2018-08-22&utm_term).\n"],
+    ]
+
+    lines_out = flair_scorer.dehyphen_paragraph(lines)
+    for x in lines_out:
+        assert len(x) > 0
+    assert [
+        [
+            "logy.com/library/detail.aspx?g=56bce942-af1f-4f78-943e-c2eb54b75e10&utm_source=Lexology+Daily+Newsfeed&utm_medium=HTML+email+-+Body++General+section&utm_campaign=Lexology+subscriber+daily+feed&utm_content=Lexology+Daily+Newsfeed+2018-08-22&utm_term).\n"
+        ]
+    ] == lines_out
+

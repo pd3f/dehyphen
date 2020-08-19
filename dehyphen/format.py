@@ -1,6 +1,7 @@
 def assert_format(lines):
     # special format. 2D List, word should not contain whitespace, except the last words per line
     for l in lines:
+        assert len(l) > 0
         for i, word in enumerate(l):
             assert isinstance(word, str)
             if i == len(l) - 1:
