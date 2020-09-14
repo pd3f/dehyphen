@@ -19,7 +19,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.6"
 clean-text = { version = "*", extras = [ "gpl" ] }
-flair = { git = "git@github.com:pd3f/flair.git", branch = "master" }
+flair = "*"
+
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
