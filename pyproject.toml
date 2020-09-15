@@ -19,7 +19,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.6"
 clean-text = { version = "*", extras = [ "gpl" ] }
-flair = "*"
+pd3f-flair = "*"
 
 
 [tool.poetry.dev-dependencies]
