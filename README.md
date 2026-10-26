@@ -62,7 +62,7 @@ Some languages only have a forward model, set `backward=False` for them.
 To speed up computations, set `fast=True` to get a smaller model (the ones ending in `-fast`). Only a few languages have one.
 `FlairScorer(lang="multi-v0", fast=True)` is a small model that covers English, German, French, Italian, Dutch and Polish.
 
-The models get downloaded on first use to `$FLAIR_CACHE_ROOT` or `~/.flair`, the same location Flair uses.
+The models get downloaded on first use to `$FLAIR_CACHE_ROOT` or `~/.flair`, the directory Flair uses, so most models Flair already downloaded get reused.
 Set `cache` to choose another directory.
 The models are loaded with a restricted unpickler that only accepts the objects contained in Flair's language models.
 

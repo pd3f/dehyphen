@@ -218,7 +218,7 @@ class _SafePickle:
 
 
 def cache_root(cache=None):
-    """Same location as Flair, so already downloaded models get reused."""
+    """Flair's cache directory, so most models Flair already downloaded get reused."""
     return Path(cache or os.getenv("FLAIR_CACHE_ROOT", Path.home() / ".flair"))
 
 
@@ -230,7 +230,7 @@ def model_path(name, cache=None):
     filename = url.rsplit("/", 1)[1]
     path = cache_root(cache) / "embeddings" / filename
     if filename == "best-lm.pt":
-        # several models share this file name, Flair keeps them apart by subdirectory
+        # several models share this file name, so each gets its own subdirectory
         path = path.parent / name / filename
     if not path.is_file():
         path.parent.mkdir(parents=True, exist_ok=True)
