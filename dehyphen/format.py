@@ -28,9 +28,9 @@ def paragraph_to_format(paragraph):
 
 
 def text_to_format(text):
-    lines = text.splitlines()
-    paragraphs = split_list(lines, "")
-    return list(map(paragraph_to_format, paragraphs))
+    # lines of only whitespace separate paragraphs, like empty lines
+    lines = [l if l.strip() else "" for l in text.splitlines()]
+    return [paragraph_to_format(p) for p in split_list(lines, "") if p]
 
 
 def format_to_paragraph(lines):

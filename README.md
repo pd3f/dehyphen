@@ -73,7 +73,7 @@ CUDA is used if available, set `device` (e.g. `device="cpu"` or `device="mps"`) 
 
 All functions work on paragraphs, lines and words: a paragraph is a list of lines, a line is a list of words.
 Within a paragraph, the last word of every line but the last ends with a single whitespace character (a space or `\n`) that joins it to the next line; all other words have none.
-`text_to_format` converts text into a list of paragraphs: paragraphs are separated by an empty line, lines by a newline, which becomes a space.
+`text_to_format` converts text into a list of paragraphs: paragraphs are separated by empty lines (or lines of only whitespace), lines by a newline, which becomes a space.
 `format_to_text` joins the paragraphs back into text, separated by an empty line.
 
 ```python

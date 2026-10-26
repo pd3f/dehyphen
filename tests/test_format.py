@@ -32,3 +32,10 @@ def test_text_to_format():
     assert len(t1f) == 1
     assert_format(t1f[0])
     assert text_to_format("eine Zeile") == [[["eine", "Zeile"]]]
+
+
+def test_whitespace_lines_separate_paragraphs():
+    assert text_to_format("ein Ab-\nsatz\n \t\nnoch einer\n\n\n") == [
+        [["ein", "Ab- "], ["satz"]],
+        [["noch", "einer"]],
+    ]
