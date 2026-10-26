@@ -148,6 +148,13 @@ print(format_to_text(paragraphs))
 
 Hyphens are removed, the paragraphs split by the page break are joined along **Auslegungsdifferenzen**, and **EU-Staaten** keeps its hyphen.
 
+## Changes in 0.4.0
+
+- Flair is no longer a dependency: dehyphen loads Flair's language models itself and works with current PyTorch. `FlairScorer.lms` holds these models, their `calculate_perplexity` is now `perplexity`.
+- `cache` sets the model directory of this scorer instead of Flair's global cache.
+- Malformed input raises a `TypeError` or `ValueError` instead of an `AssertionError`.
+- `text_to_format` always returns a list of paragraphs, also for text without an empty line, and drops empty paragraphs.
+
 ## Development
 
 ```bash
