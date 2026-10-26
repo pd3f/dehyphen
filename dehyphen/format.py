@@ -1,14 +1,23 @@
 def assert_format(lines):
     # special format. 2D List, word should not contain whitespace, except the last words per line
+    if isinstance(lines, str):
+        raise TypeError(
+            "expected lines of words, convert text with `text_to_format` first"
+        )
     for l in lines:
-        assert len(l) > 0
+        if isinstance(l, str) or len(l) == 0:
+            raise ValueError(f"a line has to be a non-empty list of words: {l!r}")
         for i, word in enumerate(l):
-            assert isinstance(word, str)
+            if not isinstance(word, str):
+                raise TypeError(f"a word has to be a string: {word!r}")
             if i == len(l) - 1:
                 # only one trailing whitespace character is allowed
-                assert len(word) - len(word.rstrip()) <= 1
-            else:
-                assert word == word.strip()
+                if len(word) - len(word.rstrip()) > 1:
+                    raise ValueError(
+                        f"last word of a line has more than one trailing whitespace: {word!r}"
+                    )
+            elif word != word.strip():
+                raise ValueError(f"word contains whitespace: {word!r}")
 
 
 def paragraph_to_format(paragraph):
@@ -19,9 +28,6 @@ def paragraph_to_format(paragraph):
 
 
 def text_to_format(text):
-    # special case if there is no newline in the text
-    if not "\n" in text:
-        return paragraph_to_format([text])
     lines = text.splitlines()
     paragraphs = split_list(lines, "")
     return list(map(paragraph_to_format, paragraphs))

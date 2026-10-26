@@ -1,4 +1,14 @@
+import pytest
+
+from dehyphen.dehyphen import Scorer
 from dehyphen.format import assert_format, text_to_format
+
+
+def test_reject_plain_text():
+    with pytest.raises(TypeError, match="text_to_format"):
+        Scorer().dehyphen("Bundes-\nminister")
+    with pytest.raises(ValueError, match="non-empty list of words"):
+        Scorer().dehyphen_paragraph(["Bundes-", "minister"])
 
 
 def test_format_check():
@@ -19,5 +29,6 @@ def test_format_check():
 def test_text_to_format():
     t1 = """inen gemeinsamen Einkauf, fördern ihre Mitglieder durch Weiterbildung und die Unterhaltung gemeinsam genutzter Räumlichkeiten und medizinischer Geräte. Als Einkaufsgemeinschaft können die Gesundheitsgenossenschaften Rahmenvereinbarungen mit Unternehmen abschließen, die den Mitgliedern zu Sonderkonditionen Produkte und Dienstleistungen anbieten. Da-  """
     t1f = text_to_format(t1)
-    assert_format(t1f)
-
+    assert len(t1f) == 1
+    assert_format(t1f[0])
+    assert text_to_format("eine Zeile") == [[["eine", "Zeile"]]]

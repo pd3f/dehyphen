@@ -1,4 +1,3 @@
-from dehyphen import scorer
 import pytest
 
 from dehyphen import FlairScorer, format_to_paragraph, text_to_format
@@ -63,8 +62,7 @@ als bei der deutschen Schadensdogmatik."""
 def test_dehyphen_split_relaxed(flair_scorer):
     t1 = """inen gemeinsamen Einkauf, fördern ihre Mitglieder durch Weiterbildung und die Unterhaltung gemeinsam genutzter Räumlichkeiten und medizinischer Geräte. Als Einkaufsgemeinschaft können die Gesundheitsgenossenschaften Rahmenvereinbarungen mit Unternehmen abschließen, die den Mitgliedern zu Sonderkonditionen Produkte und Dienstleistungen anbieten. Da-  """
     t2 = """  zu zählen beispiels"""
-    print(text_to_format(t1))
-    r1 = flair_scorer.is_split_paragraph(text_to_format(t1), text_to_format(t2))
+    r1 = flair_scorer.is_split_paragraph(text_to_format(t1)[0], text_to_format(t2)[0])
 
     assert format_to_paragraph(r1) == t1.strip()[:-1] + t2.strip()
 
@@ -107,4 +105,3 @@ def test_multiple_lines_into_one(flair_scorer):
             "logy.com/library/detail.aspx?g=56bce942-af1f-4f78-943e-c2eb54b75e10&utm_source=Lexology+Daily+Newsfeed&utm_medium=HTML+email+-+Body++General+section&utm_campaign=Lexology+subscriber+daily+feed&utm_content=Lexology+Daily+Newsfeed+2018-08-22&utm_term).\n"
         ]
     ] == lines_out
-
