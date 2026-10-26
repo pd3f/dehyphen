@@ -79,8 +79,7 @@ class Scorer:
         return [x for x in lines if len(x) > 0]
 
     def is_split_paragraph(self, para1, para2):
-        """currently only checks for the last / first line of the both paragraphs
-        """
+        """currently only checks for the last / first line of the both paragraphs"""
         assert_format(para1)
         assert_format(para2)
 
