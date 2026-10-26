@@ -34,5 +34,6 @@ class FlairScorer(Scorer):
         return float(sum([lm.perplexity(text) for lm in self.lms]))
 
     def score(self, texts):
-        assert min(map(len, texts)) > 1, "flair fails if there is only one character"
+        if min(map(len, texts)) < 2:
+            raise ValueError("every option needs at least two characters")
         return list(map(self.score_text, texts))

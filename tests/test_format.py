@@ -1,5 +1,6 @@
 import pytest
 
+from dehyphen import FlairScorer
 from dehyphen.dehyphen import Scorer
 from dehyphen.format import assert_format, text_to_format
 
@@ -9,6 +10,11 @@ def test_reject_plain_text():
         Scorer().dehyphen("Bundes-\nminister")
     with pytest.raises(ValueError, match="non-empty list of words"):
         Scorer().dehyphen_paragraph(["Bundes-", "minister"])
+
+
+def test_reject_single_character_option():
+    with pytest.raises(ValueError, match="two characters"):
+        FlairScorer(forward=False, backward=False).score(["a", "bc"])
 
 
 def test_format_check():
