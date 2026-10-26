@@ -96,6 +96,8 @@ paragraphs = scorer.dehyphen(text_to_format(text))
 paragraph = scorer.dehyphen_paragraph(lines)
 ```
 
+A line can end in `-`, a soft hyphen (U+00AD), `‐`, `‑`, `–` or `−`. A dash standing alone, as in `nach Hause –`, is kept.
+
 ### 2. Join paragraphs, e.g., to reverse a page break
 
 ```python
@@ -147,6 +149,13 @@ print(format_to_text(paragraphs))
 > Auch andere **EU-Staaten**, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie.
 
 Hyphens are removed, the paragraphs split by the page break are joined along **Auslegungsdifferenzen**, and **EU-Staaten** keeps its hyphen.
+
+## Changes in 0.4.1
+
+- Soft hyphens (U+00AD) at the end of a line are removed; a compound word gets a visible `-`.
+- A dash standing alone at the end of a line is kept instead of removed.
+- `is_split_paragraph` keeps the hyphen of a compound word (`EU-` + `Staaten`), sees a hyphen followed by whitespace, joins a paragraph of a single word and returns no empty lines.
+- clean-text is no longer a dependency.
 
 ## Changes in 0.4.0
 

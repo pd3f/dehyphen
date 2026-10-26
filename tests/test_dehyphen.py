@@ -1,6 +1,25 @@
 import pytest
 
 from dehyphen import FlairScorer, format_to_paragraph, text_to_format
+from dehyphen.dehyphen import Scorer
+from dehyphen.format import assert_format
+
+
+class PreferScorer(Scorer):
+    """Scores the options that contain `preferred` as most likely."""
+
+    def __init__(self, preferred):
+        self.preferred = preferred
+
+    def score(self, texts):
+        return [0 if self.preferred in t else 1 for t in texts]
+
+
+class ShortestScorer(Scorer):
+    """Scores the shortest option as most likely, which removes a hyphen whenever possible."""
+
+    def score(self, texts):
+        return [len(t) for t in texts]
 
 
 @pytest.fixture()
@@ -105,3 +124,58 @@ def test_multiple_lines_into_one(flair_scorer):
             "logy.com/library/detail.aspx?g=56bce942-af1f-4f78-943e-c2eb54b75e10&utm_source=Lexology+Daily+Newsfeed&utm_medium=HTML+email+-+Body++General+section&utm_campaign=Lexology+subscriber+daily+feed&utm_content=Lexology+Daily+Newsfeed+2018-08-22&utm_term).\n"
         ]
     ] == lines_out
+
+
+def test_soft_hyphen():
+    lines = text_to_format("die finan\u00ad\nziellen Interessen")[0]
+    res = PreferScorer("finanziellen").dehyphen_paragraph(lines)
+    assert format_to_paragraph(res) == "die finanziellen Interessen"
+
+
+def test_soft_hyphen_of_compound_word_becomes_visible():
+    lines = text_to_format("andere EU\u00ad\nStaaten")[0]
+    res = PreferScorer("EU-Staaten").dehyphen_paragraph(lines)
+    assert format_to_paragraph(res) == "andere EU-Staaten"
+
+
+@pytest.mark.parametrize("dash", ["-", "\u2013"])
+def test_keep_lone_dash(dash):
+    lines = text_to_format(f"nach Hause {dash}\nund ging")[0]
+    res = ShortestScorer().dehyphen_paragraph(lines)
+    assert format_to_paragraph(res) == f"nach Hause {dash} und ging"
+
+
+def test_split_paragraph_with_trailing_whitespace():
+    para1 = [["sämtliche", "Re- "]]
+    para2 = [["gelungen", "des", "RegE"]]
+    res = PreferScorer("Regelungen").is_split_paragraph(para1, para2)
+    assert format_to_paragraph(res) == "sämtliche Regelungen des RegE"
+
+
+def test_split_paragraph_of_one_word():
+    para1 = text_to_format("sämtliche Re-")[0]
+    res = PreferScorer("Regelungen").is_split_paragraph(para1, [["gelungen."]])
+    assert format_to_paragraph(res) == "sämtliche Regelungen."
+
+
+def test_split_paragraph_keeps_format():
+    para1 = text_to_format("sämtliche Re-")[0]
+    para2 = text_to_format("gelungen\ndes RegE")[0]
+    res = PreferScorer("Regelungen").is_split_paragraph(para1, para2)
+    assert_format(res)
+    assert format_to_paragraph(res) == "sämtliche Regelungen des RegE"
+
+
+def test_split_paragraph_compound_word():
+    para1 = text_to_format("andere EU-")[0]
+    para2 = text_to_format("Staaten, wie")[0]
+    res = PreferScorer("EU-Staaten").is_split_paragraph(para1, para2)
+    assert format_to_paragraph(res) == "andere EU-Staaten, wie"
+
+
+def test_split_paragraph_without_hyphen():
+    para1 = [["der", "Satz", "geht\n"]]
+    para2 = [["weiter."]]
+    assert PreferScorer("\n\n").is_split_paragraph(para1, para2) is None
+    res = PreferScorer("geht weiter").is_split_paragraph(para1, para2)
+    assert format_to_paragraph(res) == "der Satz geht weiter."

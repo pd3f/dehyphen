@@ -1,10 +1,21 @@
-from cleantext import clean
-
 from .format import assert_format
+
+# characters that hyphenate a word at the end of a line
+HYPHENS = "-\u00ad\u2010\u2011\u2013\u2212"
+SOFT_HYPHEN = "\u00ad"
 
 
 def ends_with_whitespace(s):
     return len(s) != len(s.rstrip())
+
+
+def hyphen_of(word):
+    """The hyphen `word` ends with as printed, `None` if there is none or the word is a lone dash."""
+    word = word.rstrip()
+    if len(word) < 2 or word[-1] not in HYPHENS:
+        return None
+    # a soft hyphen only shows at the end of a line
+    return "-" if word[-1] == SOFT_HYPHEN else word[-1]
 
 
 class Scorer:
@@ -34,25 +45,26 @@ class Scorer:
             if last_word[-1] == "\n":
                 continue
 
-            # transliterate to transform different kinds of hyphens to "-"
-            last_char = clean(last_word.strip()[-1])
-            if last_char != "-":
+            hyphen = hyphen_of(last_word)
+            if hyphen is None:
                 continue
 
             next_word = lines[idx + 1][0]
 
             # for flair, the words has to be at least 2 characters long
-            if min(map(len, (last_word, next_word))) < 2:
+            if len(next_word) < 2:
                 continue
+
+            stem = last_word.strip()[:-1]
 
             # 1. two words (e.g. part of an abrev.), so do nothing
             option1 = last_word + next_word
 
             # 2. some compound-word (keep hyphen), remove whitespace
-            option2 = last_word.strip() + next_word
+            option2 = stem + hyphen + next_word
 
             # 3. remove hyphen, most likely to happen
-            option3 = last_word.strip()[:-1] + next_word
+            option3 = stem + next_word
 
             scores = self.score((option1, option2, option3))
 
@@ -83,20 +95,15 @@ class Scorer:
         assert_format(para1)
         assert_format(para2)
 
-        # flair does not work with only one char
-        if len(para1) == 1 and len(para1[0]) == 1:
-            return None
-        if len(para2) == 1 and len(para2[0]) == 1:
-            return None
+        line1 = " ".join(para1[-1]).rstrip()
+        line2 = " ".join(para2[0])
+        last_word = para1[-1][-1].rstrip()
 
-        options = []
-        # the lines may have newlines or whitespace in the end
-        options.append(" ".join(para1[-1]) + "\n\n" + " ".join(para2[0]))
-        options.append(" ".join(para1[-1] + para2[0]))
-
-        last_word_para1 = para1[-1][-1]
-        if clean(last_word_para1[-1]) == "-":
-            options.append(" ".join(para1[-1])[:-1] + " ".join(para2[0]))
+        options = [line1 + "\n\n" + line2, line1 + " " + line2]
+        hyphen = hyphen_of(last_word)
+        if hyphen is not None:
+            # keep the hyphen of a compound word, or remove it
+            options += [line1[:-1] + hyphen + line2, line1[:-1] + line2]
 
         scores = self.score(options)
 
@@ -106,14 +113,15 @@ class Scorer:
             return None
 
         if best_score_idx == 1:
-            if not ends_with_whitespace(para1[-1][-1]):
-                para1[-1][-1] += " "
+            para1[-1][-1] = last_word + " "
             return para1 + para2
 
-        if best_score_idx == 2:
-            # joins the last word of para2 with the first word of para1
-            para1[-1][-1] = last_word_para1[:-1] + para2[0].pop(0)
+        # joins the last word of para1 with the first word of para2
+        joint = hyphen if best_score_idx == 2 else ""
+        para1[-1][-1] = last_word[:-1] + joint + para2[0].pop(0)
 
-            if not ends_with_whitespace(para1[-1][-1]):
-                para1[-1][-1] += " "
-            return para1 + para2
+        # the first line of para2 is empty if it was only that word
+        rest = [l for l in para2 if l]
+        if rest and not ends_with_whitespace(para1[-1][-1]):
+            para1[-1][-1] += " "
+        return para1 + rest
