@@ -2,14 +2,13 @@
 
 *Experimental, use with care.*
 
-Python package for **dehyphenation of broken text**, i.e., extracted from a PDF. Mainly for the German but works for other languages as well.
+Python package for **dehyphenation of broken text**, i.e., extracted from a PDF. Mainly for German but works for other languages as well.
 
-`dehyphen` tries to reconstruct the original continuous text by choosing the most probably way to join lines or paragraphs (and remove hyphens).
-Several options are getting scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of text, using [Flair](https://github.com/flairNLP/flair)'s character-based [language models](https://machinelearningmastery.com/statistical-language-modeling-and-neural-language-models/).
-Based on these scores, the best fitting option is taken to guess the original text.
+`dehyphen` tries to reconstruct the original continuous text by choosing the most probable way to join lines or paragraphs (and remove hyphens).
+Several options get scored by calculating the [perplexity](https://en.wikipedia.org/wiki/Perplexity#Perplexity_per_word) of the text, using the character-based language models of [Flair](https://github.com/flairNLP/flair).
+The option with the lowest perplexity wins.
 
-Check out the PDF text extraction pipeline [pd3f](https://github.com/pd3f/pd3f) that uses `dehypen` internally.
-
+Check out the PDF text extraction pipeline [pd3f](https://github.com/pd3f/pd3f) that uses `dehyphen` internally.
 
 ## An Example
 
@@ -19,7 +18,7 @@ For this input
 >
 > ziellen Interessen der Union
 
-`dehyphen` joines the lines and removes the '-'.
+`dehyphen` joins the lines and removes the '-'.
 
 > die Bedeutung der **finanziellen** Interessen der Union
 
@@ -29,10 +28,9 @@ But in this example
 >
 > Staaten, wie bspw. Polen,
 
-the lines are also joined bu the hyphen is kept (becaus it's part of the word).
+the lines are also joined but the hyphen is kept (because it's part of the word).
 
 > Auch andere **EU-Staaten**, wie bspw. Polen,
-
 
 ## Installation
 
@@ -40,97 +38,122 @@ the lines are also joined bu the hyphen is kept (becaus it's part of the word).
 pip install dehyphen
 ```
 
-or
+`dehyphen` requires Python 3.10 or newer and [PyTorch](https://pytorch.org/get-started/locally/).
+On x86-64 Linux, `pip` installs PyTorch with CUDA support by default, which is a large download.
+If you don't have a GPU, install the CPU build first:
 
 ```bash
-poetry add dehyphen
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
 ## Usage
 
 ```python
-from dehyphen import FlairScorer
+from dehyphen import FlairScorer, format_to_text, text_to_format
 
 scorer = FlairScorer(lang="de")
 ```
 
-You need to set `lang` to `de` for German, `en` for English, `es` for Spanish, etc. Otherwise, a multi-language-model will be chosen as the default. [See this section in the source code for more models](https://github.com/flairNLP/flair/blob/8c09e62d9a5a3c227b9ca0fb9f214de9620d4ca0/flair/embeddings/token.py#L431) (but omit the "-backwards" and "-forwards" as specified by Flair). [Some are described here](https://github.com/flairNLP/flair/blob/master/resources/docs/embeddings/FLAIR_EMBEDDINGS.md) and [there is another repo with some more models](https://github.com/flairNLP/flair-lms).
+Set `lang` to `de` for German, `en` for English, `es` for Spanish etc.
+Without `lang`, a multilingual model is used.
+All available models are listed in [`dehyphen/flair_lm.py`](dehyphen/flair_lm.py); omit the `-forward` / `-backward` suffix.
+Some languages only have a forward model, set `backward=False` for them.
 
-To speed up computations, choose a `-fast` language model from Flair. However, there are currently only a few.
-There is for instance a multi-language one named `multi-v0` that contains English, German, French and others.
-Unfortunately, there is no fast German-only model right now.
+To speed up computations, set `fast=True` to get a smaller model (the ones ending in `-fast`). Only a few languages have one.
+`FlairScorer(lang="multi-v0", fast=True)` is a small model that covers English, German, French, Italian, Dutch and Polish.
 
-Using CUDA (with a GPU) dramatically improves performance.
+The models get downloaded on first use to `$FLAIR_CACHE_ROOT` or `~/.flair`, the same location Flair uses.
+Set `cache` to choose another directory.
+The models are loaded with a restricted unpickler that only accepts the objects contained in Flair's language models.
 
-### 1. remove hyphens from the end of a line (within paragraphs)
+A GPU dramatically improves performance.
+CUDA is used if available, set `device` (e.g. `device="cpu"` or `device="mps"`) to choose explicitly.
+
+### Input format
+
+All functions work on paragraphs, lines and words: a paragraph is a list of lines, a line is a list of words.
+Within a paragraph, the last word of every line but the last ends with a single whitespace character (a space or `\n`) that joins it to the next line; all other words have none.
+`text_to_format` converts text into a list of paragraphs: paragraphs are separated by an empty line, lines by a newline, which becomes a space.
+`format_to_text` joins the paragraphs back into text, separated by an empty line.
 
 ```python
-# returns cleaned paragraph
-scorer.dehyphen(special_format)
+text_to_format(
+    "die Bedeutung der finan-\nziellen Interessen\n\nAuch andere EU-\nStaaten"
+)
+# [[['die', 'Bedeutung', 'der', 'finan- '], ['ziellen', 'Interessen']],
+#  [['Auch', 'andere', 'EU- '], ['Staaten']]]
 ```
 
-The input text has to be in a special format. Paragraphs should be seperated by two newlines characters (`\n\n`). Line should be end with a single newline `\n`. Several helper functions exists to transform the data into the required format.
+Passing a plain string instead raises a `TypeError`.
 
-### 2. join paragraphs, e.g., to reverse a page break
+### 1. Remove hyphens from the end of a line (within paragraphs)
 
 ```python
-# returns the joined paragraphs if the language model thinks there were split, otherwise `None`
-scorer.is_split_paragraph(paragraph_1, paragraph_2)
+# returns the cleaned paragraphs
+paragraphs = scorer.dehyphen(text_to_format(text))
+
+# or a single paragraph
+paragraph = scorer.dehyphen_paragraph(lines)
+```
+
+### 2. Join paragraphs, e.g., to reverse a page break
+
+```python
+# returns the joined paragraph if the language model thinks it was split, otherwise `None`
+joined = scorer.is_split_paragraph(paragraph_1, paragraph_2)
+```
+
+### 3. Score your own options
+
+`score` returns the perplexity for each text, summed over the forward and backward model; lower means more likely.
+Give the model some context, single word fragments score poorly.
+
+```python
+scorer.score(["finanziellen Interessen", "finan-ziellen Interessen"])
+# [4.15, 11.05]: the first option is more likely
 ```
 
 ## Example
 
 ```python
-from dehyphen import FlairScorer
+from dehyphen import FlairScorer, format_to_text, text_to_format
 
 scorer = FlairScorer(lang="de")
 
-some_german_text = """Zwar wird durch die Einführung eines eigenen Strafgesetzes die Bedeutung der finan-
+text = """Zwar wird durch die Einführung eines eigenen Strafgesetzes die Bedeutung der finan-
 ziellen Interessen der Union gewiss unterstrichen, dennoch erscheint die Aufspaltung
-des strafrechtlichen Vermögensschutzes zweifelhaft, insbesondere soweit es densel-
-ben Schutzgegenstand, nämlich die vermögensrelevanten Interessen der Union be-
-trifft. Zum einen wird es den Normunterworfenen ohne Not erschwert, die zu befolgen-
-den Strafgesetze zu erfassen. Zum anderen ergeben sich potentielle Auslegungsdif-
+des strafrechtlichen Vermögensschutzes zweifelhaft. Zum anderen ergeben sich potentielle Auslegungsdif-
 
 ferenzen durch die Verwendung teilweise abweichender Terminologie (finanzielle In-
-teressen vs. Vermögen). Schließlich wird der Schutz besagter Interessen ohnedies
-bislang innerhalb des StGB gewährleistet. Daher empfiehlt es sich u.E., sämtliche Re-
-gelungen des RegE in das StGB zu integrieren, soweit entsprechende Neuregelungen
-überhaupt erforderlich sind. Hierdurch wird sich auch eine klarere Trennung von Straf-
-recht und Verwaltungsrecht erreichen lassen.
+teressen vs. Vermögen).
 
-Das Erfolgsverständnis entspricht daher eher dem wesentlich weiteren Betrugsbegriff
-bspw. des US-amerikanischen Rechts (Federal Law bspw. Fraud, Defraud, Wire-
-Fraud, Bank-Fraud, 18.U.S.C. §1341 ff.(2016)) , die teilweise auch ganz auf einen
-Schaden verzichten. Fraud erfasst auch viele untreue- und unterschlagungsähnliche
-Verhaltensweisen sowie betrügerische Verfügungen als solche. Auch andere EU-
-Staaten, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie
-als bei der deutschen Schadensdogmatik.
-"""
+Auch andere EU-
+Staaten, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie."""
 
-special_format = text_to_format(some_german_text)
-fixed_hyphens = scorer.dehyphen(special_format)
+paragraphs = scorer.dehyphen(text_to_format(text))
 
-# checks if two paragraphs can be joined, useful to, e.g., reverse page breaks.
-joined_paragraph = scorer.is_split_paragraph(fixed_hyphens[:2])
+# join the first two paragraphs if they were split, e.g. by a page break
+joined = scorer.is_split_paragraph(paragraphs[0], paragraphs[1])
+if joined is not None:
+    paragraphs = [joined] + paragraphs[2:]
 
-print(joined_paragraph)
+print(format_to_text(paragraphs))
 ```
+
 **Output text**:
 
-Zwar wird durch die Einführung eines eigenen Strafgesetzes die Bedeutung der finanziellen Interessen der Union gewiss unterstrichen, dennoch erscheint die Aufspaltung des strafrechtlichen Vermögensschutzes zweifelhaft, insbesondere soweit es denselben Schutzgegenstand, nämlich die vermögensrelevanten Interessen der Union betrifft. Zum einen wird es den Norm unterworfenen ohne Not erschwert, die zubefolgenden Strafgesetze zu erfassen. Zum anderen ergeben sich potentielle **Auslegungsdifferenzen** durch die Verwendung teilweise abweichender Terminologie (finanzielle Interessen vs. Vermögen). Schließlich wird der Schutz besagter Interessen ohnediesbislang innerhalb des StGB gewährleistet. Daher empfiehlt es sich u.E., sämtliche Regelungen des RegE in das StGB zu integrieren, soweit entsprechende Neuregelungenüberhaupt erforderlich sind. Hierdurch wird sich auch eine klarere Trennung von Strafrecht und Verwaltungsrecht erreichen lassen.
+> Zwar wird durch die Einführung eines eigenen Strafgesetzes die Bedeutung der **finanziellen** Interessen der Union gewiss unterstrichen, dennoch erscheint die Aufspaltung des strafrechtlichen Vermögensschutzes zweifelhaft. Zum anderen ergeben sich potentielle **Auslegungsdifferenzen** durch die Verwendung teilweise abweichender Terminologie (finanzielle **Interessen** vs. Vermögen).
+>
+> Auch andere **EU-Staaten**, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie.
 
-*Hyphens are removed, paragraphs are joined along the word **Auslegungsdifferenzen**.*
+Hyphens are removed, the paragraphs split by the page break are joined along **Auslegungsdifferenzen**, and **EU-Staaten** keeps its hyphen.
 
-```python
-print(fixed_hyphens[-1])
+## Development
+
+```bash
+poetry install
+poetry run pytest
 ```
-**Output text**:
-
-Das Erfolgsverständnis entspricht daher eher dem wesentlich weiteren Betrugsbegriff bspw. des US-amerikanischen Rechts (Federal Law bspw. Fraud, Defraud, **Wire-Fraud**, Bank-Fraud, 18.U.S.C. §1341 ff.(2016)), die teilweise auch ganz auf einen Schaden verzichten. Fraud erfasst auch viele untreue- und unterschlagungsähnliche Verhaltensweisen sowie betrügerische Verfügungen als solche. Auch andere **EU-Staaten**, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie als bei der deutschen Schadensdogmatik und Verwaltungsrecht erreichen lassen.
-
-***EU-Staaten** & **Wire-Fraud** are not dehyphenized.*
-
 
 ## License
 
