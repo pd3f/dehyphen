@@ -1,6 +1,8 @@
 import datetime
 import pickle
+import socket
 import sys
+import threading
 import types
 
 import pytest
@@ -100,6 +102,48 @@ def test_failed_download_leaves_no_file(tmp_path, monkeypatch):
     with pytest.raises(OSError, match="connection reset"):
         model_path("test-forward", cache=tmp_path / "cache")
     assert list((tmp_path / "cache" / "embeddings").iterdir()) == []
+
+
+def serve_once(response):
+    """URL of a server that answers one request with `response` and closes."""
+    server = socket.create_server(("127.0.0.1", 0))
+
+    def reply():
+        conn, _ = server.accept()
+        with conn:
+            conn.recv(65536)
+            conn.sendall(response)
+        server.close()
+
+    threading.Thread(target=reply, daemon=True).start()
+    return f"http://127.0.0.1:{server.getsockname()[1]}/lm.pt"
+
+
+def test_truncated_download_leaves_no_file(tmp_path, monkeypatch):
+    url = serve_once(b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\ncheckpoint")
+    monkeypatch.setitem(MODELS, "test-forward", url)
+    with pytest.raises(OSError, match="incomplete download"):
+        model_path("test-forward", cache=tmp_path)
+    assert list((tmp_path / "embeddings").iterdir()) == []
+
+
+def test_stalled_download_times_out(tmp_path, monkeypatch):
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        url = f"http://127.0.0.1:{server.getsockname()[1]}/lm.pt"
+        monkeypatch.setitem(MODELS, "test-forward", url)
+        monkeypatch.setattr(flair_lm, "DOWNLOAD_TIMEOUT", 0.1)
+        with pytest.raises(OSError, match="timed out"):
+            model_path("test-forward", cache=tmp_path)
+    assert list((tmp_path / "embeddings").iterdir()) == []
+
+
+def test_broken_cached_model_names_path(tmp_path, monkeypatch):
+    monkeypatch.setitem(MODELS, "test-forward", "https://example.org/lm.pt")
+    cached = tmp_path / "embeddings" / "lm.pt"
+    cached.parent.mkdir()
+    cached.write_text("<html>blocked by proxy</html>")
+    with pytest.raises(RuntimeError, match="delete it to download it again"):
+        load_language_model("test-forward", cache=tmp_path, device="cpu")
 
 
 def test_unknown_model():

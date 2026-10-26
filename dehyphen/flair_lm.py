@@ -217,6 +217,10 @@ class _SafePickle:
         return _Unpickler(f, **kwargs).load()
 
 
+# seconds without data before a download fails
+DOWNLOAD_TIMEOUT = 60
+
+
 def cache_root(cache=None):
     """Flair's cache directory, so most models Flair already downloaded get reused."""
     return Path(cache or os.getenv("FLAIR_CACHE_ROOT", Path.home() / ".flair"))
@@ -237,8 +241,14 @@ def model_path(name, cache=None):
         # a unique name per download, so concurrent workers never share a partial file
         part = path.with_name(f"{path.name}.{uuid.uuid4().hex}.part")
         try:
-            with urllib.request.urlopen(url) as response, open(part, "wb") as f:
+            with (
+                urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT) as response,
+                open(part, "wb") as f,
+            ):
                 shutil.copyfileobj(response, f)
+                # http.client does not raise when the connection closes before Content-Length
+                if f.tell() != int(response.headers.get("Content-Length", f.tell())):
+                    raise OSError(f"incomplete download of {url}")
             part.replace(path)
         finally:
             part.unlink(missing_ok=True)
@@ -247,12 +257,13 @@ def model_path(name, cache=None):
 
 def load_language_model(name, cache=None, device=None):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    state = torch.load(
-        model_path(name, cache),
-        map_location=device,
-        pickle_module=_SafePickle,
-        weights_only=False,
-    )
+    path = model_path(name, cache)
+    try:
+        state = torch.load(
+            path, map_location=device, pickle_module=_SafePickle, weights_only=False
+        )
+    except (pickle.UnpicklingError, EOFError, RuntimeError) as e:
+        raise RuntimeError(f"cannot load {path}, delete it to download it again") from e
     model = LanguageModel(
         state["dictionary"],
         state["is_forward_lm"],
