@@ -72,7 +72,7 @@ CUDA is used if available, set `device` (e.g. `device="cpu"` or `device="mps"`) 
 ### Input format
 
 All functions work on paragraphs, lines and words: a paragraph is a list of lines, a line is a list of words.
-Within a paragraph, the last word of every line but the last ends with a single whitespace character (a space or `\n`) that joins it to the next line; all other words have none.
+Within a paragraph, the last word of every line but the last ends with a single whitespace character (a space or `\n`) that joins it to the next line; the last line may end with `\n` as well, all other words have none.
 `text_to_format` converts text into a list of paragraphs: paragraphs are separated by empty lines (or lines of only whitespace), lines by a newline, which becomes a space.
 `format_to_text` joins the paragraphs back into text, separated by an empty line.
 
@@ -111,6 +111,8 @@ It sees two words before and after the line end, set `context` to change that.
 # returns the joined paragraph if the language model thinks it was split, otherwise `None`
 joined = scorer.is_split_paragraph(paragraph_1, paragraph_2)
 ```
+
+A first paragraph whose last word ends with `\n` is complete and never joined.
 
 ### 3. Score your own options
 
@@ -156,6 +158,10 @@ print(format_to_text(paragraphs))
 > Auch andere **EU-Staaten**, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie.
 
 Hyphens are removed, the paragraphs split by the page break are joined along **Auslegungsdifferenzen**, and **EU-Staaten** keeps its hyphen.
+
+## Changes in 0.5.1
+
+- `is_split_paragraph` never joins a first paragraph that ends with `\n`; 0.5.0 could join it and lose the line break.
 
 ## Changes in 0.5.0
 

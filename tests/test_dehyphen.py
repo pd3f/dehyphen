@@ -237,11 +237,17 @@ def test_split_paragraph_lone_dash(dash):
 
 
 def test_split_paragraph_without_hyphen():
-    para1 = [["der", "Satz", "geht\n"]]
+    para1 = [["der", "Satz", "geht "]]
     para2 = [["weiter."]]
     assert PreferScorer("\n\n").is_split_paragraph(para1, para2) is None
     res = PreferScorer("geht weiter").is_split_paragraph(para1, para2)
     assert format_to_paragraph(res) == "der Satz geht weiter."
+
+
+@pytest.mark.parametrize("last_word", ["31\n", "Re-\n"])
+def test_split_paragraph_hard_break(last_word):
+    para1 = [["existieren.", last_word]]
+    assert NoScorer().is_split_paragraph(para1, [["Weiterhin", "hebt"]]) is None
 
 
 def test_count_words():

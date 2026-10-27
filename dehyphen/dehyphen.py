@@ -148,6 +148,10 @@ class Scorer:
         assert_format(para1)
         assert_format(para2)
 
+        # a paragraph ending with a newline is complete
+        if para1[-1][-1].endswith("\n"):
+            return None
+
         line1 = " ".join(para1[-1]).rstrip()
         line2 = " ".join(para2[0])
         last_word = para1[-1][-1].rstrip()
