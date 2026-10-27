@@ -182,6 +182,8 @@ poetry install
 poetry run pytest
 ```
 
+[`bench/`](bench/) measures how well dehyphen rejoins words that were hyphenated at the end of a line.
+
 ## License
 
 GPLv3

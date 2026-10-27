@@ -859,6 +859,22 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pyphen"
+version = "0.18.1"
+description = "Pure Python module to hyphenate text"
+optional = false
+python-versions = ">=3.10"
+groups = ["bench"]
+files = [
+    {file = "pyphen-0.18.1-py3-none-any.whl", hash = "sha256:0aa9051e15928cecadd4c632cea0258ba57215b2a197a39baa46abcdb0f47e84"},
+    {file = "pyphen-0.18.1.tar.gz", hash = "sha256:dbae6fbbe4f01cb206108b43573d857c67107be9d0e38eb1b08d6fa2210634a7"},
+]
+
+[package.extras]
+doc = ["sphinx", "sphinx_rtd_theme"]
+test = ["pytest", "ruff"]
+
+[[package]]
 name = "pytest"
 version = "9.1.1"
 description = "pytest: simple powerful testing with Python"
@@ -1139,4 +1155,4 @@ markers = {dev = "python_version == \"3.10\""}
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "0382095d18ddab3a9312814411538c65a418b4edf423e18d6e86542a8f1933ad"
+content-hash = "cfe65a1e35dc94304790b2250a731fdf34204057590c701c3b31fb23fea10de9"
