@@ -2,18 +2,21 @@
 
 Model names and URLs follow Flair's `FlairEmbeddings` (MIT, Alan Akbik et al.),
 without the CLEF-HIPE models: their files are gone and they expect lowercased text.
+The checkpoints are read with pickle and the LSTM runs with numpy, without PyTorch.
 """
 
+import io
 import math
 import os
 import pickle
 import shutil
 import urllib.request
 import uuid
+import zipfile
+from collections import OrderedDict
 from pathlib import Path
 
-import torch
-from torch import nn
+import numpy as np
 
 HU = "https://flair.informatik.hu-berlin.de/resources/embeddings/flair/"
 
@@ -156,65 +159,173 @@ class Dictionary:
         return self.item2idx.get(item.encode("utf-8"), 0)
 
 
-class LanguageModel(nn.Module):
-    def __init__(
-        self, dictionary, is_forward_lm, hidden_size, nlayers, embedding_size, nout
-    ):
-        super().__init__()
+def sigmoid(x):
+    # equal to 1 / (1 + exp(-x)), without overflowing for large negative x
+    return 0.5 * (1 + np.tanh(0.5 * x))
+
+
+class LanguageModel:
+    """Flair's `LanguageModel`: embedding, LSTM, optional projection, decoder."""
+
+    def __init__(self, dictionary, is_forward_lm, nlayers, weights):
         self.dictionary = dictionary
         self.is_forward_lm = is_forward_lm
-        self.hidden_size = hidden_size
         self.nlayers = nlayers
-        self.encoder = nn.Embedding(len(dictionary.idx2item), embedding_size)
-        self.rnn = nn.LSTM(embedding_size, hidden_size, nlayers)
-        self.proj = nn.Linear(hidden_size, nout) if nout is not None else None
-        self.decoder = nn.Linear(nout or hidden_size, len(dictionary.idx2item))
+        self.weights = weights
 
-    def forward(self, ids):
-        weight = next(self.parameters())
-        hidden = weight.new_zeros(self.nlayers, 1, self.hidden_size)
-        output, _ = self.rnn(self.encoder(ids), (hidden, hidden.clone()))
-        if self.proj is not None:
-            output = self.proj(output)
-        return self.decoder(output)
+    def lstm(self, x, layer):
+        w = self.weights
+        w_hh = w[f"rnn.weight_hh_l{layer}"]
+        bias = w[f"rnn.bias_ih_l{layer}"] + w[f"rnn.bias_hh_l{layer}"]
+        inputs = x @ w[f"rnn.weight_ih_l{layer}"].T + bias
+        h = np.zeros(w_hh.shape[1], dtype=np.float32)
+        c = np.zeros_like(h)
+        out = np.empty((len(inputs), len(h)), dtype=np.float32)
+        for t, gates in enumerate(inputs):
+            # PyTorch's gate order: input, forget, cell, output
+            i, f, g, o = np.split(gates + w_hh @ h, 4)
+            c = sigmoid(f) * c + sigmoid(i) * np.tanh(g)
+            h = sigmoid(o) * np.tanh(c)
+            out[t] = h
+        return out
 
-    @torch.inference_mode()
     def perplexity(self, text):
         if not self.is_forward_lm:
             text = text[::-1]
-        device = next(self.parameters()).device
-        ids = torch.tensor(
-            [self.dictionary.get_idx_for_item(c) for c in text], device=device
+        ids = np.array([self.dictionary.get_idx_for_item(c) for c in text])
+        w = self.weights
+        x = w["encoder.weight"][ids[:-1]]
+        for layer in range(self.nlayers):
+            x = self.lstm(x, layer)
+        if "proj.weight" in w:
+            x = x @ w["proj.weight"].T + w["proj.bias"]
+        logits = x @ w["decoder.weight"].T + w["decoder.bias"]
+        logits -= logits.max(axis=1, keepdims=True)
+        log_probs = logits - np.log(np.exp(logits).sum(axis=1, keepdims=True))
+        # cross entropy of each next character, averaged
+        nll = -log_probs[np.arange(len(ids) - 1), ids[1:]].astype(np.float64).mean()
+        return math.exp(nll)
+
+
+class _Tensor:
+    """Stands in for `torch._utils._rebuild_tensor_v2` until the storages are read."""
+
+    def __init__(
+        self, storage, offset, size, stride, grad=False, hooks=None, meta=None
+    ):
+        if meta:
+            raise pickle.UnpicklingError(f"unsupported tensor metadata {meta}")
+        self.storage = storage
+        self.offset = offset
+        self.size = size
+        self.stride = stride
+
+    def array(self, storages):
+        data = storages[self.storage]
+        n = math.prod(self.size)
+        expected = [math.prod(self.size[i + 1 :]) for i in range(len(self.size))]
+        strided = len(self.stride) != len(self.size) or any(
+            d > 1 and s != e for d, s, e in zip(self.size, self.stride, expected)
         )
-        logits = self.forward(ids[:-1].unsqueeze(1)).squeeze(1)
-        return math.exp(nn.functional.cross_entropy(logits, ids[1:]).item())
+        outside = self.offset < 0 or min(self.size, default=0) < 0
+        if strided or outside or self.offset + n > len(data):
+            raise pickle.UnpicklingError("only contiguous tensors within their storage")
+        # a copy is aligned; views into the read bytes make the LSTM about 15 % slower
+        return data[self.offset : self.offset + n].reshape(self.size).copy()
 
 
-# torch resolves storage types itself, these are the remaining globals in Flair's checkpoints
-_ALLOWED_GLOBALS = frozenset(
-    {("collections", "OrderedDict"), ("torch._utils", "_rebuild_tensor_v2")}
-)
+_GLOBALS = {
+    ("flair.data", "Dictionary"): Dictionary,
+    ("collections", "OrderedDict"): OrderedDict,
+    ("torch._utils", "_rebuild_tensor_v2"): _Tensor,
+    ("torch", "FloatStorage"): np.float32,
+}
 
 
 class _Unpickler(pickle.Unpickler):
     """Only resolves the globals Flair's checkpoints contain, so loading cannot run foreign code."""
 
+    def __init__(self, file):
+        super().__init__(file)
+        # storage key: number of float32 elements
+        self.storages = {}
+
     def find_class(self, module, name):
-        if (module, name) == ("flair.data", "Dictionary"):
-            return Dictionary
-        if (module, name) in _ALLOWED_GLOBALS:
-            return super().find_class(module, name)
-        raise pickle.UnpicklingError(
-            f"{module}.{name} is not allowed in a Flair language model"
-        )
+        if (module, name) not in _GLOBALS:
+            raise pickle.UnpicklingError(
+                f"{module}.{name} is not allowed in a Flair language model"
+            )
+        cls = _GLOBALS[module, name]
+        # a fresh subclass, so a pickle setting attributes on it leaves dehyphen's classes alone
+        return type(cls.__name__, (cls,), {}) if cls in (Dictionary, _Tensor) else cls
+
+    def persistent_load(self, pid):
+        # ("storage", type, key, location, numel), the legacy format adds a view
+        view = pid[5] if len(pid) > 5 else None
+        if pid[0] != "storage" or pid[1] is not np.float32 or view is not None:
+            raise pickle.UnpicklingError(f"unsupported storage {pid[:2]}")
+        self.storages[pid[2]] = pid[4]
+        return pid[2]
 
 
-class _SafePickle:
-    Unpickler = _Unpickler
+def _floats(raw, n):
+    if len(raw) != 4 * n:
+        raise EOFError(f"storage of {len(raw)} bytes instead of {4 * n}")
+    return np.frombuffer(raw, dtype="<f4")
 
-    @staticmethod
-    def load(f, **kwargs):
-        return _Unpickler(f, **kwargs).load()
+
+# first object of a checkpoint in torch's legacy (non-zip) format
+_LEGACY_MAGIC = 0x1950A86A20F9469CFC6C
+
+
+def _read_legacy(f):
+    """Pickles of magic number, version, system info, the object, the storage keys; then the storages."""
+    if _Unpickler(f).load() != _LEGACY_MAGIC:
+        raise pickle.UnpicklingError("not a PyTorch checkpoint")
+    _Unpickler(f).load()
+    if not _Unpickler(f).load().get("little_endian"):
+        raise pickle.UnpicklingError("only little-endian checkpoints")
+    unpickler = _Unpickler(f)
+    state = unpickler.load()
+    storages = {}
+    for key in _Unpickler(f).load():
+        n = unpickler.storages[key]
+        if int.from_bytes(f.read(8), "little") != n:
+            raise pickle.UnpicklingError(f"storage {key} has an unexpected size")
+        storages[key] = _floats(f.read(4 * n), n)
+    return state, storages
+
+
+def _read_zip(path):
+    """`<name>/data.pkl` holds the object, `<name>/data/<key>` each storage."""
+    with zipfile.ZipFile(path) as z:
+        pkl = next((n for n in z.namelist() if n.endswith("/data.pkl")), None)
+        if pkl is None:
+            raise pickle.UnpicklingError("no data.pkl in the checkpoint")
+        prefix = pkl[: -len("data.pkl")]
+        byteorder = prefix + "byteorder"
+        if byteorder in z.namelist() and z.read(byteorder) != b"little":
+            raise pickle.UnpicklingError("only little-endian checkpoints")
+        unpickler = _Unpickler(io.BytesIO(z.read(pkl)))
+        state = unpickler.load()
+        storages = {
+            key: _floats(z.read(f"{prefix}data/{key}"), n)
+            for key, n in unpickler.storages.items()
+        }
+    return state, storages
+
+
+def read_checkpoint(path):
+    """The object a PyTorch checkpoint holds, with its tensors as numpy arrays in `state_dict`."""
+    with open(path, "rb") as f:
+        # as torch tells its formats apart: a zip file starts with a local file header
+        if f.read(4) == b"PK\x03\x04":
+            state, storages = _read_zip(path)
+        else:
+            f.seek(0)
+            state, storages = _read_legacy(f)
+    state["state_dict"] = {k: t.array(storages) for k, t in state["state_dict"].items()}
+    return state
 
 
 # seconds without data before a download fails
@@ -255,22 +366,20 @@ def model_path(name, cache=None):
     return path
 
 
-def load_language_model(name, cache=None, device=None):
-    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+def load_language_model(name, cache=None):
     path = model_path(name, cache)
     try:
-        state = torch.load(
-            path, map_location=device, pickle_module=_SafePickle, weights_only=False
+        state = read_checkpoint(path)
+        lm = LanguageModel(
+            state["dictionary"],
+            state["is_forward_lm"],
+            state["nlayers"],
+            state["state_dict"],
         )
-    except (pickle.UnpicklingError, EOFError, RuntimeError) as e:
-        raise RuntimeError(f"cannot load {path}, delete it to download it again") from e
-    model = LanguageModel(
-        state["dictionary"],
-        state["is_forward_lm"],
-        state["hidden_size"],
-        state["nlayers"],
-        state["embedding_size"],
-        state["nout"],
-    )
-    model.load_state_dict(state["state_dict"])
-    return model.to(device).eval()
+        # one step touches every weight, so a damaged checkpoint fails here and not on first use
+        lm.perplexity("ab")
+    except Exception as e:
+        raise RuntimeError(
+            f"cannot load {path}; if it is damaged, delete it to download it again"
+        ) from e
+    return lm

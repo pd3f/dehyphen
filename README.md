@@ -38,13 +38,7 @@ the lines are also joined but the hyphen is kept (because it's part of the word)
 pip install dehyphen
 ```
 
-`dehyphen` requires Python 3.10 or newer and [PyTorch](https://pytorch.org/get-started/locally/).
-On x86-64 Linux, `pip` installs PyTorch with CUDA support by default, which is a large download.
-If you don't have a GPU, install the CPU build first:
-
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
+`dehyphen` requires Python 3.10 or newer.
 
 ## Usage
 
@@ -65,9 +59,7 @@ To speed up computations, set `fast=True` to get a smaller model (the ones endin
 The models get downloaded on first use to `$FLAIR_CACHE_ROOT` or `~/.flair`, the directory Flair uses, so most models Flair already downloaded get reused.
 Set `cache` to choose another directory.
 The models are loaded with a restricted unpickler that only accepts the objects contained in Flair's language models.
-
-A GPU dramatically improves performance.
-CUDA is used if available, set `device` (e.g. `device="cpu"` or `device="mps"`) to choose explicitly.
+They run on the CPU, with numpy.
 
 ### Input format
 
@@ -158,6 +150,11 @@ print(format_to_text(paragraphs))
 > Auch andere **EU-Staaten**, wie bspw. Polen, liegen im Hinblick auf den Erfolg näher bei der Richtlinie.
 
 Hyphens are removed, the paragraphs split by the page break are joined along **Auslegungsdifferenzen**, and **EU-Staaten** keeps its hyphen.
+
+## Changes in 0.6.0
+
+- PyTorch is no longer a dependency: dehyphen reads Flair's checkpoints itself and runs the language models with numpy, on the CPU. The perplexities match PyTorch's to a relative 10⁻⁵.
+- `FlairScorer` has no `device` parameter. The models in `FlairScorer.lms` are plain objects with `perplexity`, not PyTorch modules.
 
 ## Changes in 0.5.1
 

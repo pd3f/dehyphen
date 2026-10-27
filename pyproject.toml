@@ -12,7 +12,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = ["torch"]
+dependencies = ["numpy"]
 
 [project.urls]
 Repository = "https://github.com/pd3f/dehyphen"
