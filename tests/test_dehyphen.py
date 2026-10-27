@@ -1,7 +1,7 @@
 import pytest
 
-from dehyphen import FlairScorer, format_to_paragraph, text_to_format
-from dehyphen.dehyphen import Scorer
+from dehyphen import FlairScorer, count_words, format_to_paragraph, text_to_format
+from dehyphen.dehyphen import Scorer, context_of
 from dehyphen.format import assert_format
 
 
@@ -20,6 +20,21 @@ class ShortestScorer(Scorer):
 
     def score(self, texts):
         return [len(t) for t in texts]
+
+
+class NoScorer(Scorer):
+    """Fails if the language model is asked."""
+
+    def score(self, texts):
+        raise AssertionError(f"asked the language model: {texts}")
+
+
+class RecordScorer(Scorer):
+    """Remembers the options and prefers the first."""
+
+    def score(self, texts):
+        self.texts = texts
+        return [0] + [1] * (len(texts) - 1)
 
 
 @pytest.fixture()
@@ -138,11 +153,38 @@ def test_soft_hyphen_of_compound_word_becomes_visible():
     assert format_to_paragraph(res) == "andere EU-Staaten"
 
 
-@pytest.mark.parametrize("dash", ["-", "\u2013"])
+def test_soft_hyphen_kept_with_space_becomes_visible():
+    lines = text_to_format("Bundes\u00ad\nund Landesrecht")[0]
+    res = PreferScorer("Bundes- und").dehyphen_paragraph(lines)
+    assert format_to_paragraph(res) == "Bundes- und Landesrecht"
+
+    para1 = text_to_format("andere EU\u00ad")[0]
+    res = PreferScorer("EU- Staaten").is_split_paragraph(para1, [["Staaten"]])
+    assert format_to_paragraph(res) == "andere EU- Staaten"
+
+
+def test_one_character_continuation():
+    words = count_words(text_to_format("Vitamin-C"))
+    res = NoScorer().dehyphen_paragraph(text_to_format("Vitamin-\nC ist")[0], words)
+    assert format_to_paragraph(res) == "Vitamin-C ist"
+
+    lines = text_to_format("Vitamin-\nC ist")[0]
+    res = PreferScorer("Vitamin-C").dehyphen_paragraph(lines)
+    assert format_to_paragraph(res) == "Vitamin-C ist"
+
+
+@pytest.mark.parametrize("dash", ["-", "\u2013", "\u2014", "--"])
 def test_keep_lone_dash(dash):
     lines = text_to_format(f"nach Hause {dash}\nund ging")[0]
     res = ShortestScorer().dehyphen_paragraph(lines)
     assert format_to_paragraph(res) == f"nach Hause {dash} und ging"
+
+
+@pytest.mark.parametrize("dash", ["--", "\u2014"])
+def test_dash_joins_without_space(dash):
+    lines = text_to_format(f"said Darcy{dash}\nand therefore{dash}\nI went")[0]
+    res = NoScorer().dehyphen_paragraph(lines)
+    assert format_to_paragraph(res) == f"said Darcy{dash}and therefore{dash}I went"
 
 
 def test_split_paragraph_with_trailing_whitespace():
@@ -173,9 +215,93 @@ def test_split_paragraph_compound_word():
     assert format_to_paragraph(res) == "andere EU-Staaten, wie"
 
 
+@pytest.mark.parametrize("dash", ["--", "\u2014"])
+def test_split_paragraph_dash(dash):
+    para1 = text_to_format(f"said Darcy{dash}")[0]
+    assert PreferScorer("\n\n").is_split_paragraph(para1, [["and", "went"]]) is None
+    scorer = RecordScorer()
+    scorer.is_split_paragraph(para1, [["and", "went"]])
+    assert scorer.texts == [
+        f"said Darcy{dash}\n\nand went",
+        f"said Darcy{dash}and went",
+    ]
+    res = PreferScorer(f"{dash}and").is_split_paragraph(para1, [["and", "went"]])
+    assert format_to_paragraph(res) == f"said Darcy{dash}and went"
+
+
+@pytest.mark.parametrize("dash", ["--", "\u2014"])
+def test_split_paragraph_lone_dash(dash):
+    para1 = text_to_format(f"nach Hause {dash}")[0]
+    res = PreferScorer(" und").is_split_paragraph(para1, [["und", "ging"]])
+    assert format_to_paragraph(res) == f"nach Hause {dash} und ging"
+
+
 def test_split_paragraph_without_hyphen():
     para1 = [["der", "Satz", "geht\n"]]
     para2 = [["weiter."]]
     assert PreferScorer("\n\n").is_split_paragraph(para1, para2) is None
     res = PreferScorer("geht weiter").is_split_paragraph(para1, para2)
     assert format_to_paragraph(res) == "der Satz geht weiter."
+
+
+def test_count_words():
+    words = count_words(text_to_format("„EU\u2010Staaten“, eu-staaten\nDie die"))
+    assert words["eu-staaten"] == 2
+    assert words["die"] == 2
+
+
+def test_parts_of_a_hyphenated_word_are_no_words():
+    words = count_words(text_to_format("figures rep-\nresent multiuser-\ninterface"))
+    assert words["resent"] == words["multiuser-"] == 0
+    assert words["figures"] == 1
+    # a hard line break does not hyphenate
+    assert count_words([[["heading-\n"], ["resent"]]])["resent"] == 1
+    with pytest.raises(TypeError):
+        count_words(["text"])
+
+    paragraphs = text_to_format("I re-\nsent it.\n\nThese figures rep-\nresent costs.")
+    res = PreferScorer("re-sent").dehyphen(paragraphs)
+    assert format_to_paragraph(res[0]) == "I re-sent it."
+
+
+def test_document_words_decide():
+    words = count_words(text_to_format("finanziellen Mittel der EU-Staaten"))
+    lines = text_to_format("die finan-\nziellen Mittel anderer EU-\nStaaten.")[0]
+    res = NoScorer().dehyphen_paragraph(lines, words)
+    assert format_to_paragraph(res) == "die finanziellen Mittel anderer EU-Staaten."
+
+
+def test_unknown_words_ask_the_model():
+    words = count_words(text_to_format("das Recht"))
+    lines = text_to_format("Bundes-\nund Landesrecht")[0]
+    res = PreferScorer("Bundes- und").dehyphen_paragraph(lines, words)
+    assert format_to_paragraph(res) == "Bundes- und Landesrecht"
+
+
+def test_dehyphen_knows_the_whole_document():
+    paragraphs = text_to_format("die finan-\nziellen Mittel\n\nfinanziellen Interessen")
+    res = NoScorer().dehyphen(iter(paragraphs))
+    assert format_to_paragraph(res[0]) == "die finanziellen Mittel"
+
+
+def test_context():
+    lines = text_to_format("eins zwei drei finan-\nziellen vier fünf sechs")[0]
+    scorer = RecordScorer()
+    scorer.dehyphen_paragraph(lines)
+    assert scorer.texts == [
+        "zwei drei finan- ziellen vier fünf",
+        "zwei drei finan-ziellen vier fünf",
+        "zwei drei finanziellen vier fünf",
+    ]
+    scorer.dehyphen_paragraph(text_to_format("finan-\nziellen")[0], context=0)
+    assert scorer.texts == ["finan- ziellen", "finan-ziellen", "finanziellen"]
+
+    # short lines
+    lines = text_to_format("eins zwei\ndrei finan-\nziellen vier\nfünf sechs")[0]
+    scorer.dehyphen_paragraph(lines)
+    assert scorer.texts[2] == "zwei drei finanziellen vier fünf"
+
+    # a line emptied by an earlier join
+    lines = [["a", "b "], [], ["c- "], ["d", "e", "f"]]
+    assert context_of(lines, 2, 2) == ("a b", "e f")
+    assert context_of(lines, 2, 9) == ("a b", "e f")

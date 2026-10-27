@@ -49,7 +49,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 ## Usage
 
 ```python
-from dehyphen import FlairScorer, format_to_text, text_to_format
+from dehyphen import FlairScorer, count_words, format_to_text, text_to_format
 
 scorer = FlairScorer(lang="de")
 ```
@@ -89,14 +89,21 @@ Passing a plain string instead raises a `TypeError`.
 ### 1. Remove hyphens from the end of a line (within paragraphs)
 
 ```python
-# returns the cleaned paragraphs
-paragraphs = scorer.dehyphen(text_to_format(text))
+paragraphs = text_to_format(text)
 
-# or a single paragraph
-paragraph = scorer.dehyphen_paragraph(lines)
+# returns the cleaned paragraphs
+cleaned = scorer.dehyphen(paragraphs)
+
+# or a single paragraph, knowing the words of all paragraphs
+lines = scorer.dehyphen_paragraph(paragraphs[0], words=count_words(paragraphs))
 ```
 
 A line can end in `-`, a soft hyphen (U+00AD), `‐`, `‑`, `–` or `−`. A dash standing alone, as in `nach Hause –`, is kept.
+A dash ending a word, as in `word--` or `word—`, is joined with the next word without a space.
+
+The document decides first: if its other lines contain the word only without the hyphen (`finanziellen`) or only with it (`EU-Staaten`), that spelling wins.
+The language model is asked only for the remaining line ends, which also makes it faster.
+It sees two words before and after the line end, set `context` to change that.
 
 ### 2. Join paragraphs, e.g., to reverse a page break
 
@@ -150,10 +157,14 @@ print(format_to_text(paragraphs))
 
 Hyphens are removed, the paragraphs split by the page break are joined along **Auslegungsdifferenzen**, and **EU-Staaten** keeps its hyphen.
 
-## Changes in 0.4.1
+## Changes in 0.5.0
 
-- Soft hyphens (U+00AD) at the end of a line are removed; a compound word gets a visible `-`.
+- `dehyphen` and, with `words=count_words(paragraphs)`, `dehyphen_paragraph` decide with the words of the whole document before asking the language model.
+- The language model sees two words before and after the line end instead of only the broken word.
+- A dash ending a word (`word--`, `word—`) is joined with the next word without a space.
+- Soft hyphens (U+00AD) at the end of a line are removed; a hyphen that is kept becomes a visible `-`.
 - A dash standing alone at the end of a line is kept instead of removed.
+- A word continued by a single character on the next line is no longer skipped.
 - `is_split_paragraph` keeps the hyphen of a compound word (`EU-` + `Staaten`), sees a hyphen followed by whitespace, joins a paragraph of a single word and returns no empty lines.
 - clean-text is no longer a dependency.
 
